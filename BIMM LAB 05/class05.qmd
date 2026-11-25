@@ -1,0 +1,211 @@
+---
+title: "Class 5: Data Visualization with GGPLOT"
+author: "Heidi Nguyen (TSS: 200024574)"
+format: pdf
+editor: visual 
+toc: true
+---
+
+# Background
+
+There are different ways to create graphs in R including the **base R graphics** such as 'plot()' but also, packages such as **ggplot2** !
+
+First, we will visualize how these graphs can look when using these 2 different systems!
+
+We can use the built in "cars" data set given:
+
+```{r}
+head(cars)
+```
+
+A quick base R plot - this is NOT a ggplot:
+
+```{r}
+plot(cars)
+```
+
+# Time for Our First **ggplot2**
+
+Next, **ggplot2**
+
+**PAUSE**: Before I am able to use ggplot2, I need to install the package on my computer using the function 'install.packages("ggplot2")'
+
+Try to avoid installing it inside a Quarto code chunk because it would try to re-install the package every time I render. Instead, directly install it into your **R console**.
+
+After it is installed, we need to load it into the Quarto using 'library()'
+
+```{r}
+library(ggplot2)
+ggplot(cars)
+```
+
+## Basis of every ggplot
+
+When creating ggplots, we must have 3 inputs: These can include:
+
+-   **data**: data frame of what we want to plot
+
+-   **aesthetics**: the variables from our data set to help show visualizations of the plot
+
+-   **geoms**: how we want the plot to be drawn, what type of plot I want to visualize
+
+```{r}
+ggplot(data=cars) + 
+  aes(x=speed, y=dist) + 
+  geom_point()
+```
+
+## Adding Different Features to Our Plot?
+
+First, we can add trend line layer to show the relationship between the variables of 'speed' and 'distance'
+
+```{r}
+ggplot(data=cars) + 
+  aes(x=speed, y=dist) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se =FALSE)
+```
+
+Next, add some label annotations and customize the theme to give our graph more visually appealing and easier to understand!
+
+```{r}
+ggplot(data=cars) + 
+  aes(x=speed, y=dist) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se =FALSE )+
+  theme_bw()+
+    labs(x="Speed (MPH)",
+       y="Stopping Distance (ft)", 
+       title = "Stopping Distance of Some Old Cars")
+```
+
+# Real Life Example: Gene Expression Plot
+
+Turning to a real life example, given this data set on some gene expression, we will dive in on the effects of a new anti-viral drug being tested
+
+```{r}
+url <- "https://bioboot.github.io/bimm143_S20/class-material/up_down_expression.txt"
+genes <- read.delim(url)
+head(genes)
+```
+
+## Questions about our data
+
+> Q1. Use the nrow() function to find out how many genes are in this dataset. What is your answer?
+
+```{r}
+nrow(genes)
+```
+
+> Q2. Use the colnames() function and the ncol() function on the genes data frame to find out what the column names are (we will need these later) and how many columns there are. How many columns did you find?
+
+```{r}
+colnames(genes)
+ncol(genes)
+```
+
+> Q3.Use the table() function on the State column of this data.frame to find out how many ‘up’ regulated genes there are. What is your answer?
+
+```{r}
+table(genes$State)
+```
+
+> Q4. Using your values above and 2 significant figures. What fraction of total genes is up-regulated in this data set?
+
+```{r}
+n.total <- nrow(genes)
+n.up <- table(genes$State == "up")
+round(table(genes$State)/nrow(genes) * 100, 2 )
+```
+
+## Let's make our plot attempt!
+
+```{r}
+ggplot(data=genes) + 
+  aes(x=Condition1, y=Condition2, col=State) +
+  geom_point()+ 
+  scale_color_manual( values = c("blue","gray", "red")) + 
+  labs(x="Control (no drug)", y= "Drug Treatment", title ="Gene Expression Impacts from Drug Treatments")
+```
+
+# Going Further
+
+We will be exploring the gapminder dataset, which contains information on both economic and demographic data about certain nations since 1952!
+
+```{r}
+# File location online
+url <- "https://raw.githubusercontent.com/jennybc/gapminder/master/inst/extdata/gapminder.tsv"
+
+gapminder <- read.delim(url)
+head(gapminder)
+```
+
+## Questions about our new data
+
+> Q1. How many entries are in this dataset?
+
+```{r}
+nrow(gapminder)
+```
+
+> Q2. How many different "country" values are in this dataset?
+
+```{r}
+length(table(gapminder$country))
+```
+
+Time to make our first plot of `gdpPercap` vs `lifeExp`
+
+```{r}
+ggplot(gapminder) +
+  aes(x=gdpPercap, y=lifeExp) +
+  geom_point(alpha=0.2)
+```
+
+Adding the continent variable to our color aesthetic, it creates an even more detailed plot:
+
+```{r}
+ggplot(gapminder) +
+  aes(x=gdpPercap, y=lifeExp, col=continent) +
+  geom_point()
+```
+
+Another useful layer we can add to explore big datasets like the one given is called "facetting":
+
+```{r}
+ggplot(gapminder) +
+  aes(x=gdpPercap, y=lifeExp, col=continent) +
+  geom_point() + 
+  facet_wrap(~continent)
+```
+
+## Limiting our Years: 1977 and 2007
+
+To focus our data set and filter it down to a smaller subset that includes only 1977 and 2007, we will install and use **dplyr** package.
+
+The first step is to run `install.packages("dplyr")` into our R console and then load it with `library(dplyr)`.
+
+```{r}
+library(dplyr)
+
+filter(gapminder, year==2007, country=="Ireland") 
+filter(gapminder, year==1977, country=="Ireland") 
+
+#gapminder$year
+```
+
+> Q1. Make a histogram of lifeExp fill color by continent
+
+```{r}
+ggplot(gapminder) + 
+  aes(lifeExp, fill=continent) + 
+  geom_histogram()
+```
+
+> Q2. Make a boxplot of lifeExp fill color by continent
+
+```{r}
+ggplot(gapminder) + 
+  aes(lifeExp, fill=continent) + 
+  geom_boxplot()
+```

@@ -1,0 +1,167 @@
+---
+title: "Homework 6"
+author: "Heidi Nguyen (TSS: 200024574)"
+format: pdf 
+editor: visual 
+toc: true
+---
+
+# Section 1: Protein Analysis
+
+> **A**. Can you improve this analysis code?
+
+First, load and retrieve the original 3 protein structures:
+
+```{r}
+# done after installing the package 
+library(bio3d)
+```
+
+```{r}
+# saving them as s1,2,3 so we can use it easier later 
+
+s1 <- read.pdb("4AKE") # kinase with drug
+s2 <- read.pdb("1AKE") # kinase no drug
+s3 <- read.pdb("1E4Y") # kinase with drug
+```
+
+Now, filtering and keeping only chain A and its alpha carbon atoms from each protein
+
+```{r}
+
+# trim.pdb directly filtures out ONLY the chain A and its specific alpha atoms 
+
+s1.chainA <- trim.pdb(s1, chain="A", elety="CA")
+s2.chainA <- trim.pdb(s2, chain="A", elety="CA")
+s3.chainA <- trim.pdb(s3, chain="A", elety="CA")
+
+# had to edit the error "s1" in the s3.chainA and changed it to "s3"
+```
+
+Then, extracting B-factors from the trimmed protein structures
+
+```{r}
+# using $, we are extracting b factor valyes from the trimmed proteins of the A Chain 
+s1.b <- s1.chainA$atom$b
+s2.b <- s2.chainA$atom$b
+s3.b <- s3.chainA$atom$b
+
+```
+
+NOW, it's time to create some B factor plots!
+
+```{r}
+
+#plotb3() helps me visualize different protein structures based on the b factor values
+
+plotb3(s1.b, sse=s1.chainA, typ="l", ylab="Bfactor")
+
+```
+
+```{r}
+
+plotb3(s2.b, sse=s2.chainA, typ="l", ylab="Bfactor")
+
+```
+
+```{r}
+
+plotb3(s3.b, sse=s3.chainA, typ="l", ylab="Bfactor")
+
+```
+
+# Section Two: Questions about Original Code
+
+> **Q1**. What type of object is returned from the read.pdb() function?
+
+```{r}
+#check the class of object for s1 
+class(s1)
+```
+
+```{r}
+#check to confirm if s1 is a list
+
+is.list(s1)
+```
+
+Read. pdb() returns the code as a PDB object that can be stored as a list with information on the given protein structures!
+
+
+> **Q2**. What does the trim.pdb() function do?
+
+```{r}
+#this is the original trim code to help us visualize 
+#and revisit as we already used that function earlier! 
+
+s1.chainA <- trim.pdb(s1, chain="A", elety="CA")
+```
+
+The trim.pdb() function performs to help us "trim" or basically filter out specific parts from the original protein structure. Here, we selected parts specifically from the A chain and the alpha carbon atoms.
+
+
+> **Q3**. What input parameter would turn off the marginal black and grey rectangles in the plots and what do they represent in this case?
+
+```{r}
+
+plotb3(s1.b, sse=s1.chainA, typ="l", ylab="Bfactor")
+
+plotb3(s1.b, sse=NULL, typ="l", ylab="Bfactor")
+
+```
+
+As we see based on the original plotb3() function, there are rectangles appearing above and below the lines in the plot! These black and grey rectangles originally represent the SSE which is information on the secondary structures of the protein. This would include knowledge about the different alpha helices (black) and beta strands (gray). To remove them, setting the sse to NULL helps because it no longer provides any object; in this case any secondary structure information! 
+
+
+> **Q4**. What would be a better plot to compare across the different proteins?
+
+```{r}
+#mat(plot) organizes everything all into one graph 
+
+# cbind() organizes the B values of the proteins into columns so there can be a better comparison all in one graph 
+
+matplot(cbind(s1.b, s2.b, s3.b), 
+        type = "l", col = c("pink", "blue", "yellow"),
+        lty = 1,
+        xlab="Residue Position",
+        ylab= "B-Factor")
+
+#add a legend to help us visualize and understand each line 
+legend("topleft",
+       legend = c("4AKE", "1AKE", "1E4Y"), 
+       col = c("pink", "blue", "yellow"),
+       lty = 1) 
+
+```
+
+To compare cross the different proteins, instead of being able to visualize these plots separately, we want to see the relationship of them visually together! Instead, we will create a graph that helps us see all the lines all together which helps us see B factor trends' similarities and fluctuations.
+
+
+> **Q5**. Which proteins are more similar to each other in their B-factor trends. How could you quantify this?
+
+```{r}
+#First, to organize values for easier comparison we want to separate them into rows using rbind()
+#giving them names will make the diagram easier to read 
+b_factor_trends <- rbind(
+  "4AKE"= s1.b,
+  "1AKE" = s2.b, 
+  "1E4Y" = s3.b
+)
+
+#Then, use the dis() to compare the idstance between these B values. The longer the distance, the more we can conclude that the values are different
+distance <- dist(b_factor_trends)
+distance 
+
+#hclust() organizes proteins into groups based on distances which helps us visualize similarities 
+#use template from hint to help construct 
+hc <- hclust(distance)
+plot(hc, 
+     main = "Comparing B Factor Values of Protein", 
+     xlab = "Protein Structures",
+     ylab = "Distances", 
+     sub = "")
+
+
+```
+
+Based on the dendrogram, we see that proteins 1AKE and 1E4Y appear to be the most similar to each other because of the distance reasoning. Here, they are at a lower stance/height compared to 4AKE and much closer distance to each other. As a result, their b-factor valyes have smaller distances and thus are more similar to one another. To quantify the similarities, dis() helps calculate the distances between these proteins while hclust() organizes these results. Here, these two proteins share the distance of 255.3516

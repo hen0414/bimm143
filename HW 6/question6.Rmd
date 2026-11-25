@@ -1,0 +1,71 @@
+---
+title: 'Question 6: Protein B Factor Code'
+author: "Heidi Nguyen"
+date: "2026-10-19"
+output: pdf_document
+---
+
+```{r}
+#First, ALWAYS load our desired package. In this case, it is the protein structure
+
+library(bio3d)
+
+```
+
+```{r}
+
+#First, we have to make a function that analyzes the protein structure 
+# this requires users to give give PDB id and chain id
+
+# adding pdb_id requires users to specify 
+#which protein structure they want taken from the PDB
+
+#adding chain_id lets user choose what chain of protein they would want to analyze. 
+
+#they MUST specify what chain they choose
+
+# GENERAL GAME PLANE: with the selection of a specific protein structure, it will extract the b factors
+#and create plot visualizations to compare of these values may differ depending on the protein 
+
+analyze_protein <- function(pdb_id, chain_id) {
+  
+#now we have to read/understand the protein structure using the PDB id + store its data 
+  
+  pdb_data <- read.pdb(pdb_id)
+
+#using trim(), we only want to focus on one part of chain of protein structure CHOSEN by the user 
+#specifically use valyes from the alpha carbon atoms to show the amino acid residues 
+  
+selected_chain <- trim.pdb(pdb_data, chain=chain_id, elety="CA")
+  
+#now we extract the b factor values from the chain and its alpha carbon atoms so we can use them later on in a plot 
+  
+  b_values <- selected_chain$atom$b
+  
+#time to plot where we use plot3b() to visualize 
+#a line plot of the b factor values of our selected proteins 
+  
+# make sure to add labels to the plot for a cleaner look
+  
+  plotb3(b_values, sse = selected_chain,
+         typ ="l", 
+         xlab = "Residue Position", 
+          ylab = "Bfactor", 
+         main = paste("B-Factor Analysis of", pdb_id, "Chain", chain_id))
+}
+```
+
+```{r}
+
+#to confirm our code works, we want to test it out with an example! 
+# this should show a plot without changing the function 
+analyze_protein("4AKE", "A")
+```
+
+```{r}
+
+# to confirm, I will test the function using another protein!
+analyze_protein("1E4Y", "B")
+```
+
+In the code that I developed above, the main purpose was to create a code that can analyze different protein structures without having to repeat the same code for every protein. First, after loading the bio3d package, I created the function analyze_protein() as the overall function to read the protein structure, extract the B valyes from it, and then finally create a line plot to show how these values may differ within a selected chain. Knowing that I wanted a more generalized approach that could work for ANY protein and ANY chain, I included both pdb_id and chain_id, which requires user to identify the protein structure and chain they want to be analyze. After getting the protein structure based on the user requirements through the read.pdb() and storing it, the trim.pdb() function allowed me to hone in on the chain that was chosen. From here, I extracted the values of the B factor which would help me generate my plot to visualize and variation! Through these steps, I did not have to manually redo the process for each protein structure.

@@ -1,0 +1,585 @@
+---
+title: "Class 11: AlphaFold Analysis"
+author: "Heidi Nguyen (TSS: 200024574)"
+format: pdf
+---
+
+## Background
+
+We ran 3 AlphaFold2 predictions, 
+
+-HIV-PR_monomer
+-HIV-PR_dimer 
+-my find-a-gene protein sequence
+
+Here we analyze the resulting models and make some diagnostic plots that inform on model reliability. 
+
+## 1.HIV-PR Monomer 
+
+Read the 5 AF models. 
+```{r}
+list.files(path="HIV_monomer_94b5b",
+           full.names=F,
+           pattern=".pdb")
+```
+
+```{r}
+pdb_files <- list.files(path="HIV_monomer_94b5b",
+           full.names=T,
+           pattern=".pdb")
+
+# Print our PDB file names
+basename(pdb_files)
+```
+
+```{r}
+library(bio3d)
+
+pdbs <- pdbaln(pdb_files, fit=TRUE, exefile="msa")
+pdbs
+```
+
+###RMSD 
+
+Calculate the RMSD of all models to each other (i.e pairwise RSMD)
+
+```{r}
+rd <- rmsd(pdbs, fit=T)
+range(rd)
+```
+
+and a heatmap display
+
+```{r}
+library(pheatmap)
+
+colnames(rd) <- paste0("m",1:5)
+rownames(rd) <- paste0("m",1:5)
+pheatmap(rd)
+```
+
+### AF scores(pLDDT)
+
+```{r}
+# Read a reference PDB structure
+pdb <- read.pdb("1hsg")
+```
+
+```{r}
+plotb3(pdbs$b[1,], typ="l", lwd=2,
+       sse=trim.pdb(pdb, chain="A"))
+points(pdbs$b[2,], typ="l", col="red")
+points(pdbs$b[3,], typ="l", col="blue")
+points(pdbs$b[4,], typ="l", col="darkgreen")
+points(pdbs$b[5,], typ="l", col="orange")
+```
+
+```{r}
+core <- core.find(pdbs)
+```
+
+```{r}
+core.inds <- print(core, vol=0.5)
+```
+
+```{r}
+xyz <- pdbfit(pdbs, core.inds, outpath="corefit_structures")
+```
+
+###RMSF 
+
+Calculate RMSF - how far apart each amino acid is across all 5 AlphaFold models
+
+```{r}
+# Calculate RMSF
+rf <- rmsf(xyz)
+
+# Plot RMSF
+plotb3(rf, sse=trim.pdb(pdb, chain="A"),
+       ylab="RMSF")
+```
+
+### AF scores(PAE score plots)
+
+First, read the JSON files: 
+```{r}
+library(jsonlite)
+
+# List all PAE JSON files
+pae_files <- list.files(path="HIV_monomer_94b5b",
+                        pattern=".*model.*\\.json",
+                        full.names=TRUE)
+
+basename(pae_files)
+```
+
+Then, read the PAE values
+```{r}
+pae1 <- read_json(pae_files[1], simplifyVector=TRUE)
+pae5 <- read_json(pae_files[5], simplifyVector=TRUE)
+
+attributes(pae1)
+```
+
+```{r}
+# Per-residue pLDDT scores 
+#  same as B-factor of PDB..
+head(pae1$plddt) 
+```
+
+Calculate MAX PAE scores and compare them: 
+```{r}
+pae1$max_pae
+pae5$max_pae
+```
+
+Time to plot the PAE heatmaps: 
+
+First for PAE 1
+```{r}
+plot.dmat(pae1$pae, 
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col = "black",
+          zlim=c(0,30))
+```
+
+Then, for PAE 5 
+
+```{r}
+plot.dmat(pae5$pae,
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col="black",
+          zlim=c(0,30))
+```
+
+### Residue Conservation
+
+Read the AF MSA 
+
+```{r}
+aln_file <- list.files(path="HIV_monomer_94b5b",
+                       pattern=".a3m$",
+                        full.names = TRUE)
+aln <- read.fasta(aln_file[1], to.upper = TRUE)
+```
+
+Now, we can check the number of sequences in the alignment: 
+
+```{r}
+dim(aln$ali)
+```
+
+We can score the residue conservation in the alignment with the conserv() function. 
+
+```{r}
+sim <- conserv(aln)
+```
+
+Plot this conservation result: 
+
+```{r}
+plotb3(sim[1:99], sse=trim.pdb(pdb, chain="A"),
+       ylab="Conservation Score")
+```
+
+```{r}
+con <- consensus(aln, cutoff = 0.9)
+con$seq
+```
+
+For a final visualization of these functionally important sites we can map this conservation score to the Occupancy column of a PDB file for viewing in molecular viewer programs such as Mol*, PyMol, VMD, chimera etc.
+
+```{r}
+m1.pdb <- read.pdb(pdb_files[1])
+
+occ <- vec2resno(sim[1:99], m1.pdb$atom$resno)
+
+write.pdb(m1.pdb, o=occ, file="monomer_conserv.pdb")
+```
+
+## 2. HIV-PR Dimer 
+
+Read the 5 AF models. 
+
+```{r}
+list.files(path="hiv_dimer_23119_0",
+           full.names=F,
+           pattern=".pdb")
+```
+
+
+```{r}
+dimer_pdb_files <- list.files(
+  path="hiv_dimer_23119_0",
+  full.names=T,
+  pattern=".pdb")
+
+basename(dimer_pdb_files)
+```
+
+```{r}
+library(bio3d)
+dimer_pdbs <- pdbaln(dimer_pdb_files,
+                     fit=TRUE, exefile="msa")
+
+dimer_pdbs
+```
+
+###RMSD 
+
+Calculate the RMSD of all models 
+```{r}
+dimer_rd <- rmsd(dimer_pdbs, fit=TRUE)
+range(dimer_rd)
+```
+
+Heat Map Display: 
+
+```{r}
+library(pheatmap)
+
+colnames(dimer_rd) <- paste0("m",1:5)
+rownames(dimer_rd) <- paste0("m",1:5)
+
+pheatmap(dimer_rd)
+```
+
+### AF scores (pLDDT)
+
+Read the reference PDB structure: 
+
+```{r}
+dimer_ref <- read.pdb("1hsg")
+```
+
+```{r}
+plotb3(dimer_pdbs$b[1,], typ="l", lwd=2,
+       sse=dimer_ref)
+
+points(dimer_pdbs$b[2,], typ="l", col="red")
+points(dimer_pdbs$b[3,], typ="l", col="blue")
+points(dimer_pdbs$b[4,], typ="l", col="darkgreen")
+points(dimer_pdbs$b[5,], typ="l", col="orange")
+
+abline(v=100, col="gray")
+```
+
+```{r}
+dimer_core <- core.find(dimer_pdbs)
+```
+
+```{r}
+dimer_core.inds <- print(dimer_core, vol=0.5)
+```
+
+```{r}
+dimer_xyz <- pdbfit(dimer_pdbs,
+                    dimer_core.inds,
+                    outpath="corefit_dimer")
+```
+
+###RMSF 
+
+Calculate RMSF: 
+
+```{r}
+dimer_rf <- rmsf(dimer_xyz)
+```
+
+Plot RMSF: 
+
+```{r}
+plotb3(dimer_rf, sse=dimer_ref,
+       ylab="RMSF")
+
+abline(v=100, col="gray", ylab="RMSF")
+```
+
+### AF scores (PAE score plots) 
+
+First, read JSON Files
+```{r}
+library(jsonlite)
+```
+
+```{r}
+dimer_pae_files <- list.files(
+  path="hiv_dimer_23119_0",
+  pattern=".*model.*\\.json$",
+  full.names=TRUE
+)
+
+basename(dimer_pae_files)
+
+```
+
+```{r}
+dimer_pae1 <- read_json(dimer_pae_files[1], simplifyVector=TRUE)
+dimer_pae5 <- read_json(dimer_pae_files[5], simplifyVector=TRUE)
+
+attributes(dimer_pae1)
+```
+
+```{r}
+head(dimer_pae1$plddt)
+
+dimer_pae1$max_pae
+dimer_pae5$max_pae
+```
+Now Plot the models: 
+
+PAE1
+```{r}
+plot.dmat(dimer_pae1$pae,
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col="black",
+          zlim=c(0,30))
+```
+
+PAE 5
+```{r}
+plot.dmat(dimer_pae5$pae,
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col="black",
+          zlim=c(0,30))
+```
+
+### Residue Conservation
+
+```{r}
+dimer_aln_file <- list.files(
+  path="hiv_dimer_23119_0",
+  pattern=".a3m$",
+  full.names=TRUE
+)
+
+dimer_aln_file
+```
+
+```{r}
+dimer_aln <- read.fasta(dimer_aln_file[1],
+                       to.upper=TRUE)
+```
+
+```{r}
+dim(dimer_aln$ali)
+```
+
+```{r}
+dimer_sim <- conserv(dimer_aln)
+```
+
+```{r}
+plotb3(dimer_sim[1:99],
+       sse=trim.pdb(dimer_ref, chain="A"),
+       ylab="Conservation Score")
+```
+
+```{r}
+dimer_con <- consensus(dimer_aln, cutoff=0.9)
+
+dimer_con$seq
+```
+
+```{r}
+dimer_m1.pdb <- read.pdb(dimer_pdb_files[1])
+
+dimer_occ <- vec2resno(
+  c(dimer_sim[1:99], dimer_sim[1:99]),
+  dimer_m1.pdb$atom$resno
+)
+
+write.pdb(dimer_m1.pdb,
+          o=dimer_occ,
+          file="dimer_conserv.pdb")
+```
+
+## 3. My Find-A-Gene Sequence 
+
+Read the 5 AF models. 
+
+```{r}
+list.files(path="findagene_a7d40",
+           full.names=F,
+           pattern=".pdb")
+```
+
+
+```{r}
+gene_pdb_files <- list.files(
+  path="findagene_a7d40",
+  full.names=T,
+  pattern=".pdb")
+
+basename(gene_pdb_files)
+```
+
+```{r}
+library(bio3d)
+
+gene_pdbs <- pdbaln(gene_pdb_files,
+                    fit=TRUE, exefile="msa")
+
+gene_pdbs
+```
+
+###RMSD 
+
+```{r}
+gene_rd <- rmsd(gene_pdbs, fit=TRUE)
+range(gene_rd)
+```
+
+```{r}
+library(pheatmap)
+
+colnames(gene_rd) <- paste0("m",1:5)
+rownames(gene_rd) <- paste0("m",1:5)
+
+pheatmap(gene_rd)
+```
+
+### AF scores (pLDDT)
+
+```{r}
+plotb3(gene_pdbs$b[1,], typ="l", lwd=2)
+
+points(gene_pdbs$b[2,], typ="l", col="red")
+points(gene_pdbs$b[3,], typ="l", col="blue")
+points(gene_pdbs$b[4,], typ="l", col="darkgreen")
+points(gene_pdbs$b[5,], typ="l", col="orange")
+```
+
+```{r}
+gene_core <- core.find(gene_pdbs)
+```
+
+```{r}
+gene_core.inds <- print(gene_core, vol=0.5)
+```
+```{r}
+gene_xyz <- pdbfit(gene_pdbs,
+                   gene_core.inds,
+                   outpath="corefit_findagene")
+```
+
+###RMSF 
+
+```{r}
+gene_rf <- rmsf(gene_xyz)
+```
+
+```{r}
+plotb3(gene_rf, ylab="RMSF")
+```
+
+### AF scores (PAE score plots) 
+
+```{r}
+library(jsonlite)
+
+gene_pae_files <- list.files(
+  path="findagene_a7d40",
+  pattern=".*model.*\\.json$",
+  full.names=TRUE
+)
+
+basename(gene_pae_files)
+```
+
+```{r}
+gene_pae1 <- read_json(gene_pae_files[1],
+                       simplifyVector=TRUE)
+
+gene_pae5 <- read_json(gene_pae_files[5],
+                       simplifyVector=TRUE)
+
+attributes(gene_pae1)
+```
+
+```{r}
+head(gene_pae1$plddt)
+
+gene_pae1$max_pae
+gene_pae5$max_pae
+```
+
+PAE1 plot
+```{r}
+plot.dmat(gene_pae1$pae,
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col="black",
+          zlim=c(0,30))
+```
+
+PAE2 Plot 
+```{r}
+plot.dmat(gene_pae5$pae,
+          xlab="Residue Position (i)",
+          ylab="Residue Position (j)",
+          grid.col="black",
+          zlim=c(0,30))
+```
+
+### Residue Conservation
+
+```{r}
+gene_aln_file <- list.files(
+  path="findagene_a7d40",
+  pattern="\\.a3m$",
+  full.names=TRUE
+)
+
+gene_aln_file
+```
+
+```{r}
+gene_aln <- read.fasta(gene_aln_file[1],
+                       to.upper=TRUE)
+```
+
+```{r}
+dim(gene_aln$ali)
+```
+
+```{r}
+gene_sim <- conserv(gene_aln)
+```
+
+```{r}
+plotb3(gene_sim,
+       ylab="Conservation Score")
+```
+
+```{r}
+#with lower cut off,amino acids shown 
+gene_con <- consensus(gene_aln, cutoff=0.7)
+gene_con$seq
+```
+
+```{r}
+# Had to ask AI for assistance here
+#Select conservation scores that correspond to actual amino acids 
+# in my Find-A-Gene protein, excluding gap positions in the MSA.
+# Unlike the HIV-PR dimer, my protein has only one chain,
+# so the conservation scores do not need to be repeated.
+
+
+gene_scores <- gene_sim[
+  which(!(gene_aln$ali[1,] %in% c("-", ".")))
+]
+
+```
+
+```{r}
+gene_m1.pdb <- read.pdb(gene_pdb_files[1])
+gene_occ <- vec2resno(gene_scores, gene_m1.pdb$atom$resno)
+write.pdb(gene_m1.pdb, o=gene_occ, file="findagene_conserv.pdb")
+```
+
+
